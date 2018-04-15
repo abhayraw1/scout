@@ -1,5 +1,5 @@
 import numpy as np
-def getRandomGoal():
+def getRandomGoal(specific_idx=None):
 	goalStates = [(-3.5, 0.5), (-3.5, 1.0), (-3.5, 1.5), (-3.0, -0.5), (-3.0, 0.0), 
 				(-3.0, 0.5), (-3.0, 1.0), (-3.0, 1.5), (-2.5, -0.5), (-2.5, 0.0), 
 				(-2.5, 0.5), (-2.5, 1.0), (-2.5, 1.5), (-2.5, 2.0), (-2.5, 3.0), 
@@ -20,6 +20,8 @@ def getRandomGoal():
 				(2.5, 1.5), (2.5, 3.5), (3.0, -1.5), (3.0, 5), (3.5, -1.5), (3.5, 5), 
 				(3.5, 3.5), (3.5, 1.5), (4.5, -1.5), (4.5, 5), (4.5, 3.5), (4.5, 1.5)]
 	pose = goalStates[np.random.choice(len(goalStates), 1)[0]]
+	if specific_idx != None:
+		pose = goalStates[specific_idx]
 	return {'x':pose[0], 'y': pose[1], 'yaw':(np.random.choice(360, 1)[0]-180)*np.pi/180.}
 
 print getRandomGoal()

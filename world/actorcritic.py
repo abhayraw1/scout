@@ -18,7 +18,7 @@ class ActorCritic:
 
 		self.learning_rate = 0.001
 		self.epsilon = 1.0
-		self.epsilon_decay = .995
+		self.epsilon_decay = .9999
 		self.gamma = .95
 		self.tau   = .125
 
@@ -29,7 +29,7 @@ class ActorCritic:
 		# Calculate de/dA as = de/dC * dC/dA, where e is error, C critic, A act #
 		# ===================================================================== #
 
-		self.memory = deque(maxlen=20000)
+		self.memory = deque(maxlen=7500)
 		self.actor_state_input, self.actor_model = self.create_actor_model()
 		_, self.target_actor_model = self.create_actor_model()
 
@@ -62,30 +62,30 @@ class ActorCritic:
 
 	def create_actor_model(self):
 		state_input = Input(shape=self.env.observation_space.shape)
-		h1 = Dense(96, activation='relu', name="act1")(state_input)
-		h2 = Dense(72, activation='relu', name="act2")(h1)
-		h3 = Dense(48, activation='relu', name="act3")(h2)
-		h4 = Dense(24, activation='relu', name="act4")(h3)
-		output = Dense(self.env.action_space.shape[0], activation='relu')(h3)
+		h1 = Dense(512, activation='relu', name="act1")(state_input)
+		h2 = Dense(512, activation='relu', name="act2")(h1)
+		h3 = Dense(512, activation='relu', name="act3")(h2)
+		h4 = Dense(512, activation='relu', name="act4")(h3)
+		output = Dense(self.env.action_space.shape[0], activation='tanh')(h4)
 		
-		model = Model(input=state_input, output=output)
+		model = Model(inputs=state_input, outputs=output)
 		adam  = Adam(lr=0.001)
 		model.compile(loss="mse", optimizer=adam)
 		return state_input, model
 
 	def create_critic_model(self):
 		state_input = Input(shape=self.env.observation_space.shape, name="state_ip")
-		state_h1 = Dense(96, activation='relu', name="crt1")(state_input)
-		state_h2 = Dense(72, activation='relu', name="crt2")(state_h1)
-		state_h3 = Dense(48)(state_h2)
+		state_h1 = Dense(512, activation='relu', name="crt1")(state_input)
+		state_h2 = Dense(512, activation='relu', name="crt2")(state_h1)
+		state_h3 = Dense(512)(state_h2)
 		
 		action_input = Input(shape=self.env.action_space.shape, name="action_ip")
-		action_h1    = Dense(48, name="crt3")(action_input)
+		action_h1    = Dense(512, name="crt3")(action_input)
 		
 		merged    = Add()([state_h3, action_h1])
-		merged_h1 = Dense(24, activation='relu', name="crt4")(merged)
-		output = Dense(1, activation='relu', name="crt5")(merged_h1)
-		model  = Model(input=[state_input,action_input], output=output)
+		merged_h1 = Dense(512, activation='relu', name="crt4")(merged)
+		output = Dense(1, activation='linear', name="crt5")(merged_h1)
+		model  = Model(inputs=[state_input,action_input], outputs=output)
 		
 		adam  = Adam(lr=0.001)
 		model.compile(loss="mse", optimizer=adam)
@@ -113,7 +113,7 @@ class ActorCritic:
 			})
             
 	def _train_critic(self, samples):
-		print [r for x,y,r,z,c in samples]
+		#print [r for x,y,r,z,c in samples]
 		for sample in samples:
 			cur_state, action, reward, new_state, done = sample
 			if not done:
@@ -121,14 +121,15 @@ class ActorCritic:
 				future_reward = self.target_critic_model.predict(
 					[new_state, target_action])[0][0]
 				reward += self.gamma * future_reward
-			print list(cur_state[0]), action, reward
+			#print list(cur_state[0]), action, reward
+			# print "fitting reward:{}".format(reward)
 			self.critic_model.fit({'state_ip':cur_state, 'action_ip':action}, np.array([reward]), verbose=0)
 		
 	def train(self):
 		batch_size = 64
 		if len(self.memory) < batch_size:
 			return
-
+		# print "Training"
 		rewards = []
 		samples = random.sample(self.memory, batch_size)
 		self._train_critic(samples)
@@ -163,9 +164,19 @@ class ActorCritic:
 	# ========================================================================= #
 
 	def act(self, cur_state):
-		self.epsilon *= self.epsilon_decay
+		# print 'self.epsilon: {}'.format(self.epsilon)
 		if np.random.random() < self.epsilon:
+			# print 'trying to fetch random action'
 			return self.env.randomAction()
 		return self.actor_model.predict(cur_state)
+
+	def load_trained_model(self, dir, epoch):
+		print "Loading weights from: {}\nFor Epoch: {}".format(dir, epoch)
+		self.actor_model.load_weights(dir+'/actor/w_E{}.h5'.format(epoch))
+		self.target_actor_model.load_weights(dir+'/actor/w_E{}.h5'.format(epoch))
+		self.critic_model.load_weights(dir+'/critic/w_E{}.h5'.format(epoch))
+		self.target_critic_model.load_weights(dir+'/critic/w_E{}.h5'.format(epoch))
+		print "Weights Loaded"
+
 
 

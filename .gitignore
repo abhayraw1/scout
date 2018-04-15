@@ -1,2 +1,6 @@
 world/weight*
 world/*.pyc
+world/*_weights
+world/*.ipynb
+world/*.hd5
+world/.ipynb_checkpoints
